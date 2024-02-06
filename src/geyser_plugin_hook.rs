@@ -1,13 +1,13 @@
 use {
     std::fmt::{
-        Debug, Formatter
+        Debug, Formatter,
     },
     log::*,
     solana_geyser_plugin_interface::geyser_plugin_interface::{
         GeyserPlugin, GeyserPluginError,
         ReplicaAccountInfoVersions, ReplicaBlockInfoVersions, ReplicaTransactionInfoVersions,
-        SlotStatus
-    }
+        SlotStatus,
+    },
 };
 
 
@@ -22,18 +22,21 @@ impl GeyserPlugin for GeyserPluginHook {
         "GeyserPluginHook"
     }
 
+
     /// Lifecycle: the plugin has been loaded by the system
     /// used for doing whatever initialization is required by the plugin.
     /// The _config_file contains the name of the
     /// of the config file. The config must be in JSON format and
     /// include a field "libpath" indicating the full path
     /// name of the shared library implementing this interface.
-    fn on_load(&mut self, config_file: &str) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn on_load(&mut self, _config_file: &str) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         solana_logger::setup_with_default("info");
-        info!("[on_load] - config_file: {:#?}", config_file);
+        info!("[on_load] - config_file: {:#?}", _config_file);
 
         Ok(())
     }
+
+
 
     /// Lifecycle: the plugin will be unloaded by the plugin manager
     /// Note: Do any cleanup necessary.
@@ -47,12 +50,20 @@ impl GeyserPlugin for GeyserPluginHook {
     /// - When `is_startup` is false, the account is updated during transaction processing.
     /// Note: The account is versioned, so you can decide how to handle the different
     /// implementations.
-    fn update_account(&mut self, account: ReplicaAccountInfoVersions, slot: u64, is_startup: bool) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn update_account(&self, account: ReplicaAccountInfoVersions, slot: u64, is_startup: bool) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         match account {
             ReplicaAccountInfoVersions::V0_0_1(_) => {
                 return Err(GeyserPluginError::AccountsUpdateError { msg: "ReplicaAccountInfoVersions::V0_0_1 it not supported".to_string() });
             }
             ReplicaAccountInfoVersions::V0_0_2(account) => {
+                let acc = format!(
+                    "pubkey: {}, owner: {}",
+                    bs58::encode(account.pubkey).into_string(),
+                    bs58::encode(account.owner).into_string(),
+                );
+                info!("[update_account] - account: {:#?}, slot:{:#?}, is_startup:{:#?}", acc, slot, is_startup);
+            }
+            ReplicaAccountInfoVersions::V0_0_3(account) => {
                 let acc = format!(
                     "pubkey: {}, owner: {}",
                     bs58::encode(account.pubkey).into_string(),
@@ -66,20 +77,20 @@ impl GeyserPlugin for GeyserPluginHook {
 
     /// Lifecycle: called when all accounts have been notified when the validator
     /// restores the AccountsDb from snapshots at startup.
-    fn notify_end_of_startup(&mut self) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn notify_end_of_startup(&self) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         info!("[notify_end_of_startup]");
         Ok(())
     }
 
     /// Event: a slot status is updated.
-    fn update_slot_status(&mut self, slot: u64, parent: Option<u64>, status: SlotStatus) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn update_slot_status(&self, slot: u64, parent: Option<u64>, status: SlotStatus) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         info!("[update_slot_status], slot:{:#?}, parent:{:#?}, status:{:#?}", slot, parent, status);
         Ok(())
     }
 
     /// Event: a transaction is updated at a slot.
     #[allow(unused_variables)]
-    fn notify_transaction(&mut self, transaction: ReplicaTransactionInfoVersions, slot: u64) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn notify_transaction(&self, transaction: ReplicaTransactionInfoVersions, slot: u64) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         // match transaction {
         //     ReplicaTransactionInfoVersions::V0_0_1(transaction_info) => {
         //         // info!("[notify_transaction], transaction:{:#?}, slot:{:#?}", transaction_info.is_vote, slot);
@@ -88,9 +99,15 @@ impl GeyserPlugin for GeyserPluginHook {
         Ok(())
     }
 
-    fn notify_block_metadata(&mut self, blockinfo: ReplicaBlockInfoVersions) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
+    fn notify_block_metadata(&self, blockinfo: ReplicaBlockInfoVersions) -> solana_geyser_plugin_interface::geyser_plugin_interface::Result<()> {
         match blockinfo {
             ReplicaBlockInfoVersions::V0_0_1(blockinfo) => {
+                info!("[notify_block_metadata], block_info:{:#?}", blockinfo);
+            }
+            ReplicaBlockInfoVersions::V0_0_2(blockinfo) => {
+                info!("[notify_block_metadata], block_info:{:#?}", blockinfo);
+            }
+            ReplicaBlockInfoVersions::V0_0_3(blockinfo) => {
                 info!("[notify_block_metadata], block_info:{:#?}", blockinfo);
             }
         }
